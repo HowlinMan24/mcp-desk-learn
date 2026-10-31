@@ -3,5 +3,5 @@ dist
 .env
 .idea
 .DS_Store
-src/generated
+**/src/generated
 *.sqlite
