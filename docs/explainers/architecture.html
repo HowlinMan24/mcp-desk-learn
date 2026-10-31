@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How MCP Desk works</title>
+  <link rel="stylesheet" href="vendor/page.css" />
+  <script src="vendor/mermaid.min.js"></script>
+  <script src="vendor/page.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>How MCP Desk works</h1>
+    <p class="lead">You ask a question. Claude answers word by word, and it can ask to use tools.
+      Each tool lives in a separate program called an MCP server. You approve each tool call.</p>
+
+    <h2>The parts</h2>
+    <pre class="mermaid">
+flowchart LR
+  UI[Chat window] -->|your message| Agent[Agent loop]
+  Agent -->|tokens and tool cards| UI
+  Agent -->|streaming request| Claude[Claude API]
+  Claude -->|streamed answer| Agent
+  Agent -->|save every message| DB[(PostgreSQL)]
+  Agent -->|run this tool| Hub[MCP hub]
+  Hub -->|JSON over stdin and stdout| Server[Redproof MCP server]
+  Server -->|HTTP| Redproof[Redproof API]
+    </pre>
+
+    <h2>One turn with a tool</h2>
+    <pre class="mermaid">
+sequenceDiagram
+  actor You
+  participant Agent
+  participant Claude
+  participant DB as PostgreSQL
+  participant Tool as MCP server
+  You->>Agent: Scan my repo
+  Agent->>DB: Save user message
+  Agent->>Claude: Full history and tool list
+  Claude-->>You: Tokens stream into the window
+  Claude-->>Agent: Stop reason is tool_use
+  Agent->>DB: Save assistant message
+  Agent->>You: Allow this tool?
+  You->>Agent: Allow
+  Agent->>Tool: Validated tool call
+  Tool-->>Agent: Result
+  Agent->>DB: Save tool result
+  Agent->>Claude: History plus the result
+  Claude-->>You: Final answer streams
+    </pre>
+
+    <h2>Why the loop matters</h2>
+    <p>Claude never runs anything itself. It only asks. Your code runs the tool and sends the
+      result back in a new request. That loop is what makes it an agent, and it is the same in
+      Node and in Go.</p>
+    <pre class="mermaid">
+stateDiagram-v2
+  [*] --> CallClaude
+  CallClaude --> Finished: no tool requested
+  CallClaude --> WaitForApproval: tool requested
+  WaitForApproval --> RunTool: Allow
+  WaitForApproval --> CallClaude: Decline, Claude is told
+  RunTool --> CallClaude: result added to history
+  Finished --> [*]
+    </pre>
+
+    <h2>The database</h2>
+    <pre class="mermaid">
+erDiagram
+  CONVERSATIONS ||--o{ MESSAGES : has
+  CONVERSATIONS {
+    uuid id PK
+    text title
+    timestamptz updated_at
+  }
+  MESSAGES {
+    uuid conversation_id PK
+    int seq PK
+    role role
+    jsonb content
+  }
+    </pre>
+    <p>Messages are only ever added. The <code>content</code> column keeps the blocks exactly as
+      the API sent them, because Claude needs its history back unchanged.</p>
+
+    <h2>One design, two languages</h2>
+    <table>
+      <tr><th>Part</th><th>Node</th><th>Go</th></tr>
+      <tr><td>Agent loop</td><td><code>src/main/agent.ts</code></td><td><code>internal/agent/agent.go</code></td></tr>
+      <tr><td>MCP client</td><td><code>src/main/mcp.ts</code></td><td><code>internal/hub/hub.go</code></td></tr>
+      <tr><td>MCP server</td><td><code>servers/redproof-mcp.ts</code></td><td><code>cmd/redproof-mcp/main.go</code></td></tr>
+      <tr><td>Database</td><td>Prisma: <code>src/main/db.ts</code></td><td>GORM: <code>internal/store/store.go</code></td></tr>
+      <tr><td>Migrations</td><td>Prisma Migrate: <code>prisma/migrations</code></td><td>goose: <code>migrations/</code></td></tr>
+      <tr><td>HTTP and SSE</td><td><code>src/server/http.ts</code></td><td><code>cmd/server/main.go</code></td></tr>
+      <tr><td>User interface</td><td>Electron: <code>src/main/main.ts</code>, <code>renderer/</code></td><td>Web page: <code>web/index.html</code></td></tr>
+    </table>
+
+    <h2>Check yourself</h2>
+    <details><summary>Who actually runs a tool: Claude or your code?</summary>
+      <p>Your code. Claude only asks for it, and your code decides whether to run it.</p></details>
+    <details><summary>Why does a tool call need two requests to Claude?</summary>
+      <p>The first ends with Claude asking for the tool. The second sends the result, so Claude
+        can write the final answer.</p></details>
+  </main>
+</body>
+</html>
