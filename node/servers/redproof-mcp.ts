@@ -95,7 +95,12 @@ server.registerTool(
                 return text(`The scan failed: ${scan.error ?? 'unknown error'}`, true);
             }
 
-            const counts = Object.entries(scan.counts).filter(([, n]) => n > 0).map(([sev, n]) => `${n} ${sev}`).join(', ') || 'no issues';
+            const countParts: string[] = [];
+            for (const [severity, count] of Object.entries(scan.counts)) {
+                if (count > 0) countParts.push(`${count} ${severity}`);
+            }
+            const counts = countParts.length > 0 ? countParts.join(', ') : 'no issues';
+
             const lines = [`${scan.source}: ${scan.score}/100 (${counts})`, `Report: ${SITE}/report/${scan.token}`, ''];
 
             for (const finding of scan.findings) {
@@ -106,7 +111,13 @@ server.registerTool(
             if (!scan.paid && scan.locked.length) {
                 lines.push(`${scan.locked.length} more finding(s) are in the full report at the link above.`);
             }
-            return text(lines.filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n'));
+
+            const cleanLines: string[] = [];
+            for (const line of lines) {
+                const isSecondBlank = line === '' && cleanLines.at(-1) === '';
+                if (!isSecondBlank) cleanLines.push(line);
+            }
+            return text(cleanLines.join('\n'));
 
         } catch (error) {
             return text(`Could not read the report: ${(error as Error).message}`, true);
