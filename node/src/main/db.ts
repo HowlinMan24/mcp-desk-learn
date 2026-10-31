@@ -50,9 +50,6 @@ export class Store {
                 },
                 _max: {
                     seq: true
-                },
-                _sum: {
-                    seq: true
                 }
             });
             await trx.message.create({
