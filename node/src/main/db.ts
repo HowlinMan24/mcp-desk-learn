@@ -51,7 +51,6 @@ export class Store {
                 _max: {
                     seq: true
                 },
-                // TODO testing this bellow needs to be removed just want to check what I get
                 _sum: {
                     seq: true
                 }
@@ -60,7 +59,7 @@ export class Store {
                 data: {
                     conversationId,
                     seq: (latestMessage._max.seq ?? -1) + 1,
-                    role: message.role as 'user' | 'assistant',
+                    role: message.role,
                     content: message.content
                 }
             });

@@ -36,7 +36,7 @@ async function main() {
     if (command === 'db-smoke') {
         return dbSmoke()
     }
-    throw new Error('Commands: stream <text>');
+    throw new Error('Commands: stream | db-smoke <text>');
 }
 
 main().catch(error => {
