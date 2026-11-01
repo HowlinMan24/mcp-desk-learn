@@ -77,7 +77,7 @@ server.registerTool(
     'get_report',
     {
         title: 'Read a Redproof report',
-        description: 'Read tje score and findings of a Redproof scan, with the exact files and a fix prompt per finding',
+        description: 'Read the score and findings of a Redproof scan, with the exact files and a fix prompt per finding',
         inputSchema: {token: z.string().regex(/^[A-Za-z0-9_-]{43}$/).describe('The token returned by scan_github_repo')},
         annotations: {
             readOnlyHint: true,

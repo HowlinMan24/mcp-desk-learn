@@ -1,0 +1,15 @@
+{
+  "servers": [
+    {
+      "name": "redproof",
+      "command": "npx",
+      "args": [
+        "tsx",
+        "servers/redproof-mcp.ts"
+      ],
+      "env": {
+        "REDPROOF_API": "http://127.0.0.1:47102/api/v1"
+      }
+    }
+  ]
+}
